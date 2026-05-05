@@ -1,163 +1,1345 @@
+@@ -0,0 +1,1344 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Session</title>
+<title>Private Call</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300..600&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <style>
 :root {
-  --bg: #0c0c0c; --surf: #141414; --surf2: #1c1c1c; --border: rgba(255,255,255,0.07);
-  --text: #e8e8e8; --muted: #555; --green: #27ae60; --r: 6px;
+  --bg:        #0c0c0c;
+  --surf:      #141414;
+  --surf2:     #1c1c1c;
+  --border:    rgba(255,255,255,0.07);
+  --border-hi: rgba(255,255,255,0.14);
+  --text:      #e8e8e8;
+  --muted:     #555;
+  --red:       rgba(192,57,43,0.18);
+  --red-b:     rgba(192,57,43,0.35);
+  --green:     #27ae60;
+  --r:         6px;
+  --rl:        10px;
+  --ease:      cubic-bezier(0.16,1,0.3,1);
+  --font:      'Inter', system-ui, sans-serif;
 }
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: var(--bg); color: var(--text); font-family: sans-serif; font-size: 13px; display: flex; flex-direction: column; min-height: 100vh; }
-#setup { position: fixed; inset: 0; background: var(--bg); z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px; }
-#view { width: 400px; max-width: 90%; aspect-ratio: 16/9; background: #000; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
-.bar { display: flex; justify-content: space-between; padding: 12px; background: var(--surf); border-bottom: 1px solid var(--border); }
-.status { font-size: 11px; padding: 2px 8px; border-radius: 4px; background: var(--surf2); border: 1px solid var(--border); }
-.status.active { color: var(--green); border-color: rgba(39,174,96,0.3); }
-.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 15px; flex: 1; }
-.v-container { position: relative; background: #000; border-radius: 8px; border: 1px solid var(--border); overflow: hidden; aspect-ratio: 16/9; }
-video { width: 100%; height: 100%; object-fit: cover; }
-.controls { padding: 15px; display: flex; gap: 10px; }
-.btn { padding: 8px 16px; border-radius: var(--r); border: 1px solid var(--border); background: var(--surf2); color: #fff; cursor: pointer; }
-.btn-primary { background: var(--text); color: #000; font-weight: 600; }
-.modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); align-items: center; justify-content: center; z-index: 2000; }
-.modal-box { background: var(--surf); padding: 30px; border-radius: 10px; text-align: center; border: 1px solid var(--border); }
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.5;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  transition: background .3s;
+}
+
+/* pre-join screen */
+#preJoin {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  z-index: 5000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  transition: background .3s;
+}
+#preJoin h2 { font-size: 16px; font-weight: 500; letter-spacing: -0.01em; }
+
+#previewWrap {
+  position: relative;
+  width: 480px;
+  max-width: 90vw;
+  aspect-ratio: 16/9;
+  background: #000;
+  border-radius: var(--rl);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+#previewVid { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.pj-row { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; justify-content: center; }
+
+.pj-field { display: flex; flex-direction: column; gap: 4px; }
+.pj-field label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.pj-field select {
+  background: var(--surf2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 6px 10px;
+  font-family: var(--font);
+  font-size: 12px;
+  cursor: pointer;
+  appearance: none;
+  min-width: 160px;
+}
+.pj-field select:focus { outline: none; border-color: var(--border-hi); }
+
+.enter-btn {
+  padding: 10px 32px;
+  background: var(--text);
+  color: #0c0c0c;
+  border: none;
+  border-radius: var(--r);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.01em;
+  transition: opacity .15s;
+}
+.enter-btn:hover { opacity: .85; }
+
+/* topbar */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surf);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.topbar-left { display: flex; align-items: center; gap: 9px; }
+.logo { width: 18px; height: 18px; flex-shrink: 0; }
+.wordmark { font-size: 13px; font-weight: 500; letter-spacing: -0.01em; }
+
+#statusBadge {
+  font-size: 11px;
+  color: var(--muted);
+  padding: 3px 8px;
+  background: var(--surf2);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+}
+#statusBadge.on {
+  color: var(--green);
+  border-color: rgba(39,174,96,.25);
+  background: rgba(39,174,96,.06);
+}
+
+/* main layout */
+.main { flex: 1; display: flex; flex-direction: column; padding: 14px 18px; gap: 14px; }
+
+/* video grid */
+.vgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 680px) { .vgrid { grid-template-columns: 1fr; } }
+
+.vwrap {
+  position: relative;
+  background: #000;
+  border-radius: var(--rl);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  aspect-ratio: 16/9;
+}
+
+video { width: 100%; height: 100%; object-fit: cover; display: block; background: #000; }
+.mirrored { transform: scaleX(-1); }
+
+#pipOverlay {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  width: 22%;
+  min-width: 80px;
+  aspect-ratio: 16/9;
+  border: 1px solid var(--border-hi);
+  border-radius: var(--r);
+  z-index: 50;
+  display: none;
+  object-fit: cover;
+  background: #111;
+}
+
+.vbadges {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: flex;
+  gap: 5px;
+  z-index: 10;
+  pointer-events: none;
+}
+.vbadge {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 3px 7px;
+  border-radius: 20px;
+  background: rgba(0,0,0,.65);
+  border: 1px solid rgba(255,255,255,.1);
+  color: rgba(255,255,255,.5);
+}
+.vbadge.warn {
+  color: #e07070;
+  border-color: rgba(192,57,43,.4);
+  background: rgba(192,57,43,.15);
+  display: none;
+}
+.vbadge.warn.on { display: block; }
+
+.voff {
+  position: absolute;
+  inset: 0;
+  background: #0e0e0e;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  z-index: 5;
+}
+.voff.on { display: flex; }
+
+.flip-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 4px 7px;
+  font-size: 10px;
+  font-family: var(--font);
+  font-weight: 500;
+  color: rgba(255,255,255,.35);
+  background: rgba(0,0,0,.5);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  cursor: pointer;
+  z-index: 10;
+  transition: color .15s, border-color .15s;
+}
+.flip-btn:hover { color: rgba(255,255,255,.75); border-color: var(--border-hi); }
+
+/* controls */
+.controls { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 11px;
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text);
+  background: var(--surf2);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  cursor: pointer;
+  white-space: nowrap;
+  letter-spacing: .01em;
+  line-height: 1;
+  transition: background .15s var(--ease), border-color .15s var(--ease);
+}
+.btn:hover { background: #242424; border-color: var(--border-hi); }
+.btn:active { background: #1a1a1a; }
+.btn.off { color: #e07070; border-color: var(--red-b); background: var(--red); }
+.btn.off:hover { background: rgba(192,57,43,.25); }
+
+.bico { width: 15px; height: 15px; flex-shrink: 0; opacity: .65; }
+
+.btn-end { background: rgba(192,57,43,.25); border-color: rgba(192,57,43,.5); color: #f08080; }
+.btn-end:hover { background: rgba(192,57,43,.4) !important; border-color: rgba(192,57,43,.7) !important; }
+
+/* split button */
+.split { display: inline-flex; position: relative; }
+.split .btn-main { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.split .btn-caret {
+  padding: 7px 7px;
+  border-left: none;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+/* dropdown panels */
+.dpanel {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 5px);
+  left: 0;
+  min-width: 210px;
+  background: var(--surf);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--rl);
+  padding: 12px;
+  z-index: 300;
+  box-shadow: 0 8px 32px rgba(0,0,0,.65);
+}
+.dpanel.open { display: block; }
+
+.dfield { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+.dfield:last-child { margin-bottom: 0; }
+.dfield-lbl { font-size: 10px; font-weight: 500; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+.dfield select {
+  width: 100%;
+  background: var(--surf2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 5px 7px;
+  font-family: var(--font);
+  font-size: 12px;
+  cursor: pointer;
+  appearance: none;
+  outline: none;
+}
+.dfield select:focus { border-color: var(--border-hi); }
+
+.ddiv { height: 1px; background: var(--border); margin: 10px 0; }
+.sep { width: 1px; height: 22px; background: var(--border); flex-shrink: 0; }
+
+/* volume slider */
+.vol-wrap {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  background: var(--surf2);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+}
+.vol-lbl { font-size: 11px; color: var(--muted); }
+input[type=range] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 85px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--border-hi);
+  outline: none;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--text);
+  cursor: pointer;
+}
+
+/* stats panel */
+#statsPanel {
+  position: fixed;
+  top: 60px;
+  right: 12px;
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-radius: var(--rl);
+  font-size: 11px;
+  color: var(--muted);
+  z-index: 600;
+  line-height: 2;
+  font-variant-numeric: tabular-nums;
+  min-width: 148px;
+  user-select: none;
+  box-shadow: 0 4px 20px rgba(0,0,0,.5);
+  display: none;
+}
+#statsPanel.visible { display: block; }
+
+#statsDragHandle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px 4px;
+  cursor: grab;
+  border-bottom: 1px solid var(--border);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+#statsDragHandle:active { cursor: grabbing; }
+#statsDragHandle svg { opacity: .4; }
+#statsBody { padding: 6px 12px 10px; }
+#statsPanel span { color: var(--text); font-weight: 500; }
+
+/* customise button + panel */
+#customiseBtn {
+  position: fixed;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 7px 18px;
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  font-family: var(--font);
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  z-index: 200;
+  letter-spacing: .02em;
+  transition: color .15s, border-color .15s;
+  white-space: nowrap;
+}
+#customiseBtn:hover { color: var(--text); border-color: var(--border-hi); }
+
+#customisePanel {
+  display: none;
+  position: fixed;
+  bottom: 58px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surf);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--rl);
+  padding: 18px 20px;
+  z-index: 500;
+  box-shadow: 0 8px 32px rgba(0,0,0,.7);
+  min-width: 260px;
+}
+#customisePanel.open { display: block; }
+
+.cust-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+.cust-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.cust-row:last-child { margin-bottom: 0; }
+.cust-lbl { font-size: 12px; color: var(--text); flex: 1; }
+.cust-row input[type=color] {
+  width: 36px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  background: none;
+  cursor: pointer;
+  padding: 2px;
+}
+.cust-row input[type=color]::-webkit-color-swatch-wrapper { padding: 0; }
+.cust-row input[type=color]::-webkit-color-swatch { border: none; border-radius: 4px; }
+.cust-reset {
+  font-size: 11px;
+  color: var(--muted);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 4px 10px;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: color .15s;
+}
+.cust-reset:hover { color: var(--text); }
+
+/* incoming call modal */
+.modal-back {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.65);
+  z-index: 2000;
+  align-items: center;
+  justify-content: center;
+}
+.modal-back.show { display: flex; }
+
+.modal {
+  background: var(--surf);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--rl);
+  padding: 24px;
+  min-width: 260px;
+  text-align: center;
+}
+.modal h3 { font-size: 14px; font-weight: 500; margin-bottom: 6px; letter-spacing: -.01em; }
+.modal p { font-size: 12px; color: var(--muted); margin-bottom: 20px; font-variant-numeric: tabular-nums; }
+.modal-actions { display: flex; gap: 8px; justify-content: center; }
+
+.btn-accept { background: rgba(39,174,96,.12); border-color: rgba(39,174,96,.3); color: #60d080; }
+.btn-accept:hover { background: rgba(39,174,96,.2); border-color: rgba(39,174,96,.5); }
+.btn-deny { background: var(--red); border-color: var(--red-b); color: #e07070; }
+.btn-deny:hover { background: rgba(192,57,43,.25); }
+
+#endModal .modal { border-color: rgba(192,57,43,.4); }
 </style>
 </head>
 <body>
 
-<div id="setup">
-  <div id="view"><video id="pVid" autoplay muted playsinline style="transform: scaleX(-1);"></video></div>
-  <button class="btn btn-primary" id="startBtn">Connect</button>
-</div>
-
-<div class="bar">
-  <span>Secure Session</span>
-  <div id="stat" class="status">Disconnected</div>
-</div>
-
-<div class="grid">
-  <div class="v-container"><video id="lVid" autoplay muted playsinline style="transform: scaleX(-1);"></video></div>
-  <div class="v-container"><video id="rVid" autoplay playsinline></video></div>
-</div>
-
-<div class="controls">
-  <button class="btn" onclick="copyURL()">Invite</button>
-  <button class="btn" style="color:#ff6b6b" onclick="location.reload()">End</button>
-</div>
-
-<div class="modal" id="inModal">
-  <div class="modal-box">
-    <h3>Incoming Connection</h3>
-    <button class="btn btn-primary" id="accBtn" style="margin-top:20px">Accept</button>
+<!-- incoming call -->
+<div class="modal-back" id="callModal">
+  <div class="modal">
+    <h3>Incoming call</h3>
+    <p id="callerId">—</p>
+    <div class="modal-actions">
+      <button id="btnAccept" class="btn btn-accept">
+        <svg class="bico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M2 5.5C2 9.09 5.91 13 9.5 13c.83 0 1.6-.3 2.17-.8l1.5-1.5a.5.5 0 0 0-.03-.73l-2-1.6a.5.5 0 0 0-.68.06l-.74.85a5.5 5.5 0 0 1-2.5-2.5l.85-.74a.5.5 0 0 0 .06-.68l-1.6-2a.5.5 0 0 0-.73-.03L4.3 3.33C3.3 3.9 2 4.67 2 5.5Z"/>
+        </svg>
+        Accept
+      </button>
+      <button id="btnDecline" class="btn btn-deny">
+        <svg class="bico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M3 3l10 10M13 3 3 13"/>
+        </svg>
+        Decline
+      </button>
+    </div>
   </div>
 </div>
 
+<!-- end call confirmation -->
+<div class="modal-back" id="endModal">
+  <div class="modal">
+    <h3>End call?</h3>
+    <p>This will disconnect the session and return you to the lobby.</p>
+    <div class="modal-actions">
+      <button id="btnEndConfirm" class="btn btn-end">End Call</button>
+      <button id="btnEndCancel" class="btn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- draggable stats -->
+<div id="statsPanel">
+  <div id="statsDragHandle">
+    <span>Stats</span>
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5">
+      <circle cx="3.5" cy="3.5" r=".75" fill="currentColor" stroke="none"/>
+      <circle cx="8.5" cy="3.5" r=".75" fill="currentColor" stroke="none"/>
+      <circle cx="3.5" cy="8.5" r=".75" fill="currentColor" stroke="none"/>
+      <circle cx="8.5" cy="8.5" r=".75" fill="currentColor" stroke="none"/>
+      <circle cx="3.5" cy="6"   r=".75" fill="currentColor" stroke="none"/>
+      <circle cx="8.5" cy="6"   r=".75" fill="currentColor" stroke="none"/>
+    </svg>
+  </div>
+  <div id="statsBody">
+    <div>Signal   <span id="s-sig">—</span></div>
+    <div>Ping     <span id="s-ping">—</span></div>
+    <div>Jitter   <span id="s-jit">—</span></div>
+    <div>Res      <span id="s-res">—</span></div>
+    <div>FPS      <span id="s-fps">—</span></div>
+    <div>Bitrate  <span id="s-bit">—</span></div>
+    <div>Duration <span id="s-dur">0:00</span></div>
+  </div>
+</div>
+
+<!-- customise -->
+<button id="customiseBtn">Customise</button>
+<div id="customisePanel">
+  <div class="cust-title">Appearance</div>
+  <div class="cust-row">
+    <span class="cust-lbl">Background colour</span>
+    <input type="color" id="bgPicker" value="#0c0c0c">
+    <button class="cust-reset" id="bgReset">Reset</button>
+  </div>
+</div>
+
+<!-- pre-join lobby -->
+<div id="preJoin">
+  <h2>Private Session</h2>
+  <div id="previewWrap">
+    <video id="previewVid" autoplay muted playsinline class="mirrored"></video>
+  </div>
+  <div class="pj-row">
+    <div class="pj-field"><label>Camera</label><select id="pjCam"></select></div>
+    <div class="pj-field"><label>Microphone</label><select id="pjMic"></select></div>
+    <div class="pj-field">
+      <label>Quality</label>
+      <select id="pjRes">
+        <option value="1080">1080p</option>
+        <option value="720" selected>720p</option>
+        <option value="480">480p</option>
+        <option value="360">360p</option>
+      </select>
+    </div>
+  </div>
+  <button class="enter-btn" id="enterBtn">Join Call</button>
+</div>
+
+<!-- topbar -->
+<header class="topbar">
+  <div class="topbar-left">
+    <svg class="logo" viewBox="0 0 20 20" fill="none" aria-label="Private Call">
+      <rect x="3" y="9" width="14" height="9" rx="2" stroke="currentColor" stroke-width="1.4"/>
+      <path d="M6.5 9V6.5a3.5 3.5 0 0 1 7 0V9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+      <circle cx="10" cy="13.5" r="1.25" fill="currentColor"/>
+    </svg>
+    <span class="wordmark">Private Session</span>
+  </div>
+  <div id="statusBadge">Waiting…</div>
+</header>
+
+<!-- main -->
+<main class="main">
+  <div class="vgrid">
+
+    <div class="vwrap">
+      <video id="pipOverlay" autoplay muted playsinline class="mirrored"></video>
+      <div class="voff" id="localOff">Camera off</div>
+      <div class="vbadges">
+        <span class="vbadge">You</span>
+        <span class="vbadge warn" id="badgeMuted">Muted</span>
+      </div>
+      <video id="localVideo" autoplay muted playsinline class="mirrored"></video>
+      <button class="flip-btn" onclick="toggleFlip('localVideo')">Flip</button>
+    </div>
+
+    <div class="vwrap">
+      <div class="voff" id="remoteOff">Camera off</div>
+      <div class="vbadges">
+        <span class="vbadge">Peer</span>
+        <span class="vbadge warn" id="badgePeerMuted">Muted</span>
+        <span class="vbadge warn" id="badgePeerDeaf">Deafened</span>
+      </div>
+      <video id="remoteVideo" autoplay playsinline></video>
+      <button class="flip-btn" onclick="toggleFlip('remoteVideo')">Flip</button>
+    </div>
+
+  </div>
+
+  <div class="controls">
+
+    <!-- camera -->
+    <div class="split">
+      <button id="btnCam" class="btn btn-main">
+        <svg class="bico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+          <rect x="1" y="4" width="10" height="8" rx="1.5"/>
+          <path d="M11 6.5l4-2.5v8l-4-2.5" stroke-linejoin="round"/>
+        </svg>
+        <span id="camLbl">Camera</span>
+      </button>
+      <button class="btn btn-caret" id="camCaret" aria-label="Camera settings">
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M2 3.5L5 6.5L8 3.5"/>
+        </svg>
+      </button>
+      <div class="dpanel" id="camMenu">
+        <div class="dfield">
+          <span class="dfield-lbl">Device</span>
+          <select id="camSel"></select>
+        </div>
+        <div class="ddiv"></div>
+        <div class="dfield">
+          <span class="dfield-lbl">Resolution</span>
+          <select id="resSel">
+            <option value="1080">1080p</option>
+            <option value="720" selected>720p</option>
+            <option value="480">480p</option>
+            <option value="360">360p</option>
+          </select>
+        </div>
+        <div class="ddiv"></div>
+        <div class="dfield">
+          <span class="dfield-lbl">Frame Rate</span>
+          <select id="fpsSel">
+            <option value="60">60 fps</option>
+            <option value="30" selected>30 fps</option>
+            <option value="24">24 fps</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- mic -->
+    <div class="split">
+      <button id="btnMic" class="btn btn-main">
+        <svg class="bico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+          <rect x="5" y="1" width="6" height="8" rx="3"/>
+          <path d="M3 8a5 5 0 0 0 10 0M8 13v2" stroke-linecap="round"/>
+        </svg>
+        <span id="micLbl">Mic</span>
+      </button>
+      <button class="btn btn-caret" id="micCaret" aria-label="Mic settings">
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M2 3.5L5 6.5L8 3.5"/>
+        </svg>
+      </button>
+      <div class="dpanel" id="micMenu">
+        <div class="dfield">
+          <span class="dfield-lbl">Device</span>
+          <select id="micSel"></select>
+        </div>
+      </div>
+    </div>
+
+    <!-- deafen -->
+    <button id="btnDeafen" class="btn">
+      <svg class="bico" id="deafIco" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+        <path d="M1 5.5h3l3-3.5v12L4 10.5H1z"/>
+        <path d="M11 5c1.1.8 1.7 2 1.7 3s-.6 2.2-1.7 3M13 3.5c1.8 1.3 2.8 3.2 2.8 4.5s-1 3.2-2.8 4.5" stroke-linecap="round"/>
+      </svg>
+      <span id="deafLbl">Deafen</span>
+    </button>
+
+    <div class="sep"></div>
+
+    <!-- screen share -->
+    <button id="btnShare" class="btn">
+      <svg class="bico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+        <rect x="1" y="2" width="14" height="10" rx="1.5"/>
+        <path d="M5 14h6M8 12v2" stroke-linecap="round"/>
+        <path d="M5.5 7.5L8 5l2.5 2.5M8 5v5.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span id="shareLbl">Share Screen</span>
+    </button>
+
+    <!-- copy link -->
+    <button id="btnCopy" class="btn">
+      <svg class="bico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+        <path d="M6.5 9.5a3.5 3.5 0 0 0 5 0l2-2a3.5 3.5 0 0 0-5-5L7.5 3.5" stroke-linecap="round"/>
+        <path d="M9.5 6.5a3.5 3.5 0 0 0-5 0l-2 2a3.5 3.5 0 0 0 5 5l1-1" stroke-linecap="round"/>
+      </svg>
+      <span id="copyLbl">Copy Link</span>
+    </button>
+
+    <div class="sep"></div>
+
+    <!-- stats toggle -->
+    <button id="btnStats" class="btn">
+      <svg class="bico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+        <path d="M2 12l3-4 3 2 3-5 3 3" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Stats
+    </button>
+
+    <!-- volume -->
+    <div class="vol-wrap">
+      <span class="vol-lbl">Vol</span>
+      <input type="range" id="volSlider" min="0" max="1" step="0.01" value="1" aria-label="Peer volume">
+    </div>
+
+    <div class="sep"></div>
+
+    <!-- end call -->
+    <button id="btnEnd" class="btn btn-end">
+      <svg class="bico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M2 9.5C2 6.5 4.8 4 8 4s6 2.5 6 5.5" stroke-linecap="round"/>
+        <path d="M1 9.5c0-.83.7-1.5 1.5-1.5H4c.28 0 .5.22.5.5v2a.5.5 0 0 1-.5.5H2.5A1.5 1.5 0 0 1 1 9.5ZM15 9.5c0-.83-.7-1.5-1.5-1.5H12a.5.5 0 0 0-.5.5v2c0 .28.22.5.5.5h1.5A1.5 1.5 0 0 0 15 9.5Z"/>
+      </svg>
+      End Call
+    </button>
+
+  </div>
+</main>
+
 <script>
 const $ = id => document.getElementById(id);
-let peer, call, conn, stream;
-window.pass = null;
 
-const cfg = {
-    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
-    iceTransportPolicy: 'all' 
-};
+// global state
+let myPeer, currentCall, dataConn, myStream, camStream;
+let pendingCall = null;
+let isScreenSharing = false;
+let deafened = false, camOff = false, micOff = false;
+let callStart = null;
+let lastBytes = 0, lastStatsTime = 0, lastSentState = null;
 
-async function init() {
-    try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        $('pVid').srcObject = stream;
-    } catch (e) {
-        alert("Camera/Mic access required.");
+const localVid  = $('localVideo');
+const remoteVid = $('remoteVideo');
+const pip       = $('pipOverlay');
+
+// --- pre-join ---
+
+async function preJoinInit() {
+  // ask for permission first so device labels show up
+  try {
+    const probe = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    probe.getTracks().forEach(t => t.stop());
+  } catch (e) {}
+
+  const devices = await navigator.mediaDevices.enumerateDevices();
+
+  // clear existing options
+  ['pjCam', 'camSel'].forEach(id => $(id).innerHTML = '');
+  ['pjMic', 'micSel'].forEach(id => $(id).innerHTML = '');
+
+  devices.forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d.deviceId;
+
+    if (d.kind === 'videoinput') {
+      opt.text = d.label || 'Camera ' + ($('pjCam').options.length + 1);
+      $('pjCam').appendChild(opt);
+      $('camSel').appendChild(opt.cloneNode(true));
+    } else if (d.kind === 'audioinput') {
+      opt.text = d.label || 'Mic ' + ($('pjMic').options.length + 1);
+      $('pjMic').appendChild(opt);
+      $('micSel').appendChild(opt.cloneNode(true));
     }
+  });
+
+  await startPreview();
+
+  $('pjCam').onchange = startPreview;
+  $('pjMic').onchange = startPreview;
+  $('pjRes').onchange = startPreview;
 }
 
-$('startBtn').onclick = () => {
-    $('setup').style.display = 'none';
-    $('lVid').srcObject = stream;
-    run();
+async function startPreview() {
+  const res = parseInt($('pjRes').value);
+  const w   = res === 1080 ? 1920 : res === 720 ? 1280 : res === 480 ? 854 : 640;
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        deviceId:   $('pjCam').value ? { exact: $('pjCam').value } : undefined,
+        width:      { ideal: w },
+        height:     { ideal: res },
+        frameRate:  { ideal: 60, min: 24 }
+      },
+      audio: {
+        deviceId:          $('pjMic').value ? { exact: $('pjMic').value } : undefined,
+        autoGainControl:   false,
+        echoCancellation:  true,
+        noiseSuppression:  false,
+        channelCount:      2
+      }
+    });
+
+    if (myStream) myStream.getTracks().forEach(t => t.stop());
+    myStream = camStream = stream;
+    $('previewVid').srcObject = stream;
+  } catch (e) {
+    console.error('Preview failed:', e);
+  }
+}
+
+$('enterBtn').onclick = () => {
+  $('preJoin').style.display = 'none';
+  localVid.srcObject = myStream;
+  initPeer();
 };
 
-function run() {
-    const id = Math.random().toString(36).substring(2, 12);
-    peer = new Peer(id, { config: cfg });
+// --- peer setup ---
 
-    peer.on('open', uid => {
-        const params = new URLSearchParams(location.search);
-        const room = params.get('room');
+function initPeer() {
+  myPeer = new Peer(null, {
+    config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }
+  });
 
-        if (room) {
-            const key = prompt("Access Key:");
-            if (!key) return location.reload();
-            conn = peer.connect(room);
-            conn.on('open', () => {
-                conn.send({ cmd: 'auth', val: key });
-            });
-            handleData(conn);
-        } else {
-            window.pass = Math.random().toString(36).slice(-6).toUpperCase();
-            const newUrl = window.location.origin + window.location.pathname + '?room=' + uid;
-            window.history.replaceState({}, '', newUrl);
-            alert("Room Key: " + window.pass);
-            updateStat("Key: " + window.pass, true);
+  myPeer.on('open', id => {
+    const url    = new URL(window.location.href);
+    const roomId = url.searchParams.get('room');
+
+    if (roomId) {
+      setStatus('Calling…');
+      const call = myPeer.call(roomId, myStream);
+      if (call) {
+        handleCall(call);
+        dataConn = myPeer.connect(roomId);
+        dataConn.on('open', () => setupData(dataConn));
+      }
+    } else {
+      url.searchParams.set('room', id);
+      window.history.replaceState({}, '', url);
+      setStatus('Ready — share this link');
+    }
+  });
+
+  myPeer.on('call', incoming => {
+    // reject if already in a call
+    if (currentCall?.open) { incoming.close(); return; }
+    pendingCall = incoming;
+    $('callerId').textContent = incoming.peer.slice(0, 18) + '…';
+    $('callModal').classList.add('show');
+  });
+
+  myPeer.on('connection', conn => {
+    dataConn = conn;
+    conn.on('open', () => setupData(conn));
+  });
+
+  myPeer.on('error', e => setStatus('Error: ' + e.type));
+}
+
+$('btnAccept').onclick = () => {
+  $('callModal').classList.remove('show');
+  if (!pendingCall) return;
+  pendingCall.answer(myStream);
+  handleCall(pendingCall);
+  pendingCall = null;
+};
+
+$('btnDecline').onclick = () => {
+  $('callModal').classList.remove('show');
+  if (pendingCall) { pendingCall.close(); pendingCall = null; }
+};
+
+function handleCall(call) {
+  currentCall = call;
+
+  call.on('stream', remote => {
+    remoteVid.srcObject = remote;
+    setStatus('Connected', true);
+    callStart = Date.now();
+    applyQualitySettings(call);
+  });
+
+  call.on('close', () => {
+    setStatus('Call ended');
+    remoteVid.srcObject = null;
+    callStart = null;
+  });
+
+  call.on('error', e => console.error('Call error:', e));
+}
+
+async function applyQualitySettings(call) {
+  const pc = call.peerConnection;
+  if (!pc) return;
+
+  for (const sender of pc.getSenders()) {
+    if (!sender.track || sender.track.kind !== 'video') continue;
+
+    try {
+      const params = sender.getParameters();
+      if (!params.encodings || !params.encodings.length) params.encodings = [{}];
+      params.encodings[0].degradationPreference = 'maintain-resolution';
+      params.encodings[0].maxBitrate = 8_000_000;
+      await sender.setParameters(params);
+    } catch (e) {
+      console.warn('setParameters failed:', e);
+    }
+
+    try { sender.track.contentHint = 'detail'; } catch (e) {}
+  }
+}
+
+function setupData(conn) {
+  conn.on('data', d => {
+    $('badgePeerMuted').classList.toggle('on', !d.mic);
+    $('badgePeerDeaf').classList.toggle('on',  d.deaf);
+    $('remoteOff').classList.toggle('on',      !d.cam);
+  });
+}
+
+function pushState() {
+  if (!dataConn?.open || !myStream) return;
+
+  const state = {
+    mic:  myStream.getAudioTracks()[0]?.enabled ?? true,
+    cam:  myStream.getVideoTracks()[0]?.enabled ?? true,
+    deaf: deafened
+  };
+
+  const json = JSON.stringify(state);
+  if (json !== lastSentState) {
+    dataConn.send(state);
+    lastSentState = json;
+  }
+}
+
+// --- media ---
+
+async function applyMediaConstraints() {
+  const res = parseInt($('resSel').value);
+  const fps = parseInt($('fpsSel').value);
+  const w   = res === 1080 ? 1920 : res === 720 ? 1280 : res === 480 ? 854 : 640;
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        deviceId:  $('camSel').value ? { exact: $('camSel').value } : undefined,
+        width:     { ideal: w },
+        height:    { ideal: res },
+        frameRate: { ideal: fps, min: 24 }
+      },
+      audio: {
+        deviceId:         $('micSel').value ? { exact: $('micSel').value } : undefined,
+        autoGainControl:  false,
+        echoCancellation: true,
+        noiseSuppression: false,
+        channelCount:     2
+      }
+    });
+
+    myStream.getTracks().forEach(t => t.stop());
+    myStream = camStream = stream;
+
+    if (!isScreenSharing) localVid.srcObject = stream;
+    else                   pip.srcObject      = stream;
+
+    if (currentCall?.peerConnection) {
+      const pc = currentCall.peerConnection;
+      stream.getTracks().forEach(track => {
+        const sender = pc.getSenders().find(s => s.track?.kind === track.kind);
+        if (sender) sender.replaceTrack(track);
+      });
+      await applyQualitySettings(currentCall);
+    }
+
+    // restore mute states on new tracks
+    const vt = stream.getVideoTracks()[0];
+    const at = stream.getAudioTracks()[0];
+    if (vt) vt.enabled = !camOff;
+    if (at) at.enabled = !micOff;
+
+  } catch (e) {
+    console.error('applyMediaConstraints failed:', e);
+  }
+}
+
+// --- toggles ---
+
+$('btnCam').onclick = function() {
+  const track = myStream?.getVideoTracks()[0];
+  if (!track) return;
+
+  camOff = !camOff;
+  track.enabled = !camOff;
+
+  this.classList.toggle('off', camOff);
+  $('camLbl').textContent = camOff ? 'Camera Off' : 'Camera';
+  $('localOff').classList.toggle('on', camOff);
+  pushState();
+};
+
+$('btnMic').onclick = function() {
+  const track = myStream?.getAudioTracks()[0];
+  if (!track) return;
+
+  micOff = !micOff;
+  track.enabled = !micOff;
+
+  this.classList.toggle('off', micOff);
+  $('micLbl').textContent = micOff ? 'Mic Off' : 'Mic';
+  $('badgeMuted').classList.toggle('on', micOff);
+  pushState();
+};
+
+$('btnDeafen').onclick = function() {
+  deafened = !deafened;
+  remoteVid.muted = deafened;
+
+  this.classList.toggle('off', deafened);
+  $('deafLbl').textContent = deafened ? 'Deafened' : 'Deafen';
+
+  $('deafIco').innerHTML = deafened
+    ? '<path d="M1 5.5h3l3-3.5v12L4 10.5H1z"/><path d="M11 6l4 4M15 6l-4 4" stroke-linecap="round"/>'
+    : '<path d="M1 5.5h3l3-3.5v12L4 10.5H1z"/><path d="M11 5c1.1.8 1.7 2 1.7 3s-.6 2.2-1.7 3M13 3.5c1.8 1.3 2.8 3.2 2.8 4.5s-1 3.2-2.8 4.5" stroke-linecap="round"/>';
+
+  pushState();
+};
+
+// --- screen share ---
+
+$('btnShare').onclick = async () => {
+  if (isScreenSharing) return;
+
+  try {
+    const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+    const screenTrack  = screenStream.getVideoTracks()[0];
+
+    isScreenSharing = true;
+    $('shareLbl').textContent = 'Stop Share';
+    $('btnShare').classList.add('off');
+
+    pip.srcObject     = camStream;
+    pip.style.display = 'block';
+    localVid.srcObject = screenStream;
+
+    if (currentCall?.peerConnection) {
+      const sender = currentCall.peerConnection.getSenders().find(s => s.track?.kind === 'video');
+      if (sender) sender.replaceTrack(screenTrack);
+    }
+
+    screenTrack.onended = stopShare;
+  } catch (e) {
+    console.log('Share cancelled:', e.name);
+  }
+};
+
+function stopShare() {
+  isScreenSharing = false;
+  $('shareLbl').textContent = 'Share Screen';
+  $('btnShare').classList.remove('off');
+
+  pip.style.display = 'none';
+  pip.srcObject      = null;
+  localVid.srcObject = camStream;
+
+  if (currentCall?.peerConnection && camStream) {
+    const sender   = currentCall.peerConnection.getSenders().find(s => s.track?.kind === 'video');
+    const camTrack = camStream.getVideoTracks()[0];
+    if (sender && camTrack) sender.replaceTrack(camTrack);
+  }
+}
+
+// --- copy link ---
+
+$('btnCopy').onclick = function() {
+  const url = window.location.href;
+  const lbl = $('copyLbl');
+
+  const onCopied = () => {
+    lbl.textContent = 'Copied';
+    setTimeout(() => lbl.textContent = 'Copy Link', 2000);
+  };
+
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(url).then(onCopied).catch(() => fallbackCopy(url, onCopied));
+  } else {
+    fallbackCopy(url, onCopied);
+  }
+};
+
+function fallbackCopy(text, cb) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try {
+    document.execCommand('copy');
+    cb();
+  } catch (e) {
+    alert('Copy:\n\n' + text);
+  }
+  document.body.removeChild(ta);
+}
+
+// --- end call ---
+
+$('btnEnd').onclick = () => $('endModal').classList.add('show');
+$('btnEndCancel').onclick = () => $('endModal').classList.remove('show');
+
+$('btnEndConfirm').onclick = () => {
+  $('endModal').classList.remove('show');
+
+  // tear everything down
+  try { currentCall?.close(); } catch (e) {}
+  try { dataConn?.close();    } catch (e) {}
+  try { myPeer?.destroy();    } catch (e) {}
+
+  currentCall = null;
+  dataConn    = null;
+  myPeer      = null;
+
+  remoteVid.srcObject = null;
+  callStart    = null;
+  deafened     = false;
+  camOff       = false;
+  micOff       = false;
+  lastSentState = null;
+
+  // reset all toggle buttons
+  $('btnCam').classList.remove('off');    $('camLbl').textContent  = 'Camera';
+  $('localOff').classList.remove('on');
+  $('btnMic').classList.remove('off');    $('micLbl').textContent  = 'Mic';
+  $('badgeMuted').classList.remove('on');
+  $('btnDeafen').classList.remove('off'); $('deafLbl').textContent = 'Deafen';
+  $('btnShare').classList.remove('off');  $('shareLbl').textContent = 'Share Screen';
+
+  pip.style.display = 'none';
+  pip.srcObject     = null;
+
+  if (isScreenSharing) {
+    isScreenSharing    = false;
+    localVid.srcObject = camStream;
+  }
+
+  // strip room param so the page works as a host again
+  const url = new URL(window.location.href);
+  url.searchParams.delete('room');
+  window.history.replaceState({}, '', url);
+
+  setStatus('Waiting…');
+  $('preJoin').style.display = 'flex';
+  startPreview().then(() => $('previewVid').srcObject = myStream);
+};
+
+// --- flip ---
+
+function toggleFlip(id) {
+  $(id).classList.toggle('mirrored');
+}
+
+// --- volume ---
+
+$('volSlider').oninput = function() {
+  remoteVid.volume = this.value;
+};
+
+// --- dropdowns ---
+
+function setupDrop(caretId, menuId) {
+  const caret = $(caretId);
+  const menu  = $(menuId);
+
+  caret.addEventListener('click', e => {
+    e.stopPropagation();
+    const wasOpen = menu.classList.contains('open');
+    document.querySelectorAll('.dpanel').forEach(d => d.classList.remove('open'));
+    if (!wasOpen) menu.classList.add('open');
+  });
+
+  menu.addEventListener('click', e => e.stopPropagation());
+}
+
+setupDrop('camCaret', 'camMenu');
+setupDrop('micCaret', 'micMenu');
+
+window.addEventListener('click', () => {
+  document.querySelectorAll('.dpanel').forEach(d => d.classList.remove('open'));
+  $('customisePanel').classList.remove('open');
+});
+
+['camSel', 'resSel', 'fpsSel'].forEach(id => {
+  $(id).addEventListener('change', async () => {
+    await applyMediaConstraints();
+    $('camMenu').classList.remove('open');
+  });
+});
+
+$('micSel').addEventListener('change', async () => {
+  await applyMediaConstraints();
+  $('micMenu').classList.remove('open');
+});
+
+// --- stats panel ---
+
+$('btnStats').onclick = () => $('statsPanel').classList.toggle('visible');
+
+// draggable stats
+(function() {
+  const panel  = $('statsPanel');
+  const handle = $('statsDragHandle');
+  let dragging = false;
+  let ox = 0, oy = 0;
+
+  handle.addEventListener('mousedown', e => {
+    dragging = true;
+    const rect = panel.getBoundingClientRect();
+    ox = e.clientX - rect.left;
+    oy = e.clientY - rect.top;
+    e.preventDefault();
+  });
+
+  window.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    let x = Math.max(0, Math.min(window.innerWidth  - panel.offsetWidth,  e.clientX - ox));
+    let y = Math.max(0, Math.min(window.innerHeight - panel.offsetHeight, e.clientY - oy));
+    panel.style.right = 'auto';
+    panel.style.left  = x + 'px';
+    panel.style.top   = y + 'px';
+  });
+
+  window.addEventListener('mouseup', () => dragging = false);
+
+  handle.addEventListener('touchstart', e => {
+    dragging = true;
+    const rect = panel.getBoundingClientRect();
+    const t    = e.touches[0];
+    ox = t.clientX - rect.left;
+    oy = t.clientY - rect.top;
+  }, { passive: true });
+
+  window.addEventListener('touchmove', e => {
+    if (!dragging) return;
+    const t = e.touches[0];
+    let x = Math.max(0, Math.min(window.innerWidth  - panel.offsetWidth,  t.clientX - ox));
+    let y = Math.max(0, Math.min(window.innerHeight - panel.offsetHeight, t.clientY - oy));
+    panel.style.right = 'auto';
+    panel.style.left  = x + 'px';
+    panel.style.top   = y + 'px';
+  }, { passive: true });
+
+  window.addEventListener('touchend', () => dragging = false);
+})();
+
+// --- customise ---
+
+$('customiseBtn').addEventListener('click', e => {
+  e.stopPropagation();
+  $('customisePanel').classList.toggle('open');
+});
+
+$('customisePanel').addEventListener('click', e => e.stopPropagation());
+
+$('bgPicker').addEventListener('input', function() {
+  document.body.style.background = this.value;
+  $('preJoin').style.background  = this.value;
+  document.documentElement.style.setProperty('--bg', this.value);
+});
+
+$('bgReset').addEventListener('click', () => {
+  $('bgPicker').value = '#0c0c0c';
+  document.body.style.background = '';
+  $('preJoin').style.background  = '';
+  document.documentElement.style.setProperty('--bg', '#0c0c0c');
+});
+
+// --- helpers ---
+
+function setStatus(msg, connected) {
+  $('statusBadge').textContent = msg;
+  $('statusBadge').className   = connected ? 'on' : '';
+}
+
+// --- stats polling ---
+
+setInterval(async () => {
+  if (!currentCall?.peerConnection) return;
+
+  try {
+    const stats = await currentCall.peerConnection.getStats();
+
+    stats.forEach(r => {
+      if (r.type === 'inbound-rtp' && r.kind === 'video') {
+        if (lastStatsTime) {
+          const elapsed = r.timestamp - lastStatsTime;
+          if (elapsed > 0) {
+            const kbps = Math.floor((8 * (r.bytesReceived - lastBytes)) / elapsed);
+            $('s-bit').textContent = kbps + ' kbps';
+          }
         }
+        lastBytes     = r.bytesReceived;
+        lastStatsTime = r.timestamp;
+
+        if (r.frameWidth)           $('s-res').textContent = r.frameWidth + '×' + r.frameHeight;
+        if (r.framesPerSecond)      $('s-fps').textContent = Math.round(r.framesPerSecond) + ' fps';
+        if (r.jitter !== undefined) $('s-jit').textContent = (r.jitter * 1000).toFixed(1) + ' ms';
+      }
+
+      if (r.type === 'candidate-pair' && r.state === 'succeeded' && r.currentRoundTripTime !== undefined) {
+        const ms = Math.floor(r.currentRoundTripTime * 1000);
+        $('s-ping').textContent = ms + ' ms';
+        $('s-sig').textContent  = ms < 80 ? 'Excellent' : ms < 180 ? 'Good' : 'Poor';
+      }
     });
+  } catch (e) {}
 
-    peer.on('connection', c => {
-        c.on('data', data => {
-            if (data.cmd === 'auth' && data.val === window.pass) {
-                conn = c;
-                updateStat("Verified", true);
-                const out = peer.call(c.peer, stream);
-                handleCall(out);
-            } else if (data.cmd === 'auth') {
-                c.send({ cmd: 'err', val: 'Denied' });
-            }
-        });
-    });
+  if (callStart) {
+    const sec = Math.floor((Date.now() - callStart) / 1000);
+    $('s-dur').textContent = Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
+  }
+}, 1000);
 
-    peer.on('call', inc => {
-        if (conn && conn.open) {
-            $('inModal').style.display = 'flex';
-            $('accBtn').onclick = () => {
-                $('inModal').style.display = 'none';
-                inc.answer(stream);
-                handleCall(inc);
-            };
-        }
-    });
-}
-
-function handleCall(c) {
-    call = c;
-    call.on('stream', rem => {
-        $('rVid').srcObject = rem;
-        updateStat("Connected", true);
-    });
-}
-
-function handleData(c) {
-    c.on('data', d => {
-        if (d.cmd === 'err') {
-            alert(d.val);
-            location.href = window.location.pathname;
-        }
-    });
-}
-
-function updateStat(t, a) {
-    $('stat').textContent = t;
-    $('stat').classList.toggle('active', a);
-}
-
-function copyURL() {
-    navigator.clipboard.writeText(window.location.href);
-}
-
-window.onload = init;
+// boot
+preJoinInit();
 </script>
 </body>
 </html>
